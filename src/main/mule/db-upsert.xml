@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="d56642e5-533c-4093-bf27-9d89190af557" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="d1dbfe95-72f0-451d-89f8-2161d735c90e" >
+		<db:my-sql-connection host="sql6.freesqldatabase.com" port="3306" user="sql6679566" password="Va7nRA63zg" database="sql6679566" />
+	</db:config>
+	<flow name="db-upsertFlow" doc:id="5206e8c0-3f92-44c5-ae5b-91e1201e1e81" >
+		<http:listener doc:name="Listener" doc:id="7ffccd2b-070d-45f4-8d8f-6611ad6fd179" config-ref="HTTP_Listener_config" path="/api/*"/>
+		<ee:transform doc:name="Transform Message" doc:id="ddcc8260-28ac-42cf-935e-2a0da1a72be3">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map{
+	empId: $.employeeId,
+	empName: $.employeeName,
+	empNumber: $.employeePhone
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+		<choice doc:name="Choice" doc:id="e9845d08-7859-4a12-bbb3-cb58a584822c">
+			<when expression="#[attributes.queryParams.id ~= 1]">
+				<flow-ref doc:name="without-upsert" doc:id="a438c8a8-62da-48a5-be28-7a7780f4d9f6" name="without-upsert" />
+			</when>
+			<otherwise>
+				<flow-ref doc:name="with-upsert" doc:id="99a416c4-a82c-409f-888c-e469d1964dd7" name="with-upsert" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="without-upsert" doc:id="45a2b48f-f359-4ed3-9d22-372c26b6457e" >
+		<ee:transform doc:name="Transform Message" doc:id="a5feb802-ae7d-4809-95ec-467a924558a0" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:bulk-insert doc:name="Bulk insert" doc:id="0ff416eb-8fd7-4d69-9ef3-e0a0097e821d" config-ref="Database_Config">
+			<db:sql ><![CDATA[insert into sql6679566.employee_details(empId,empName,empPhone) values(:empId,:empName,:empNumber)]]></db:sql>
+		</db:bulk-insert>
+		<ee:transform doc:name="Transform Message" doc:id="4e89404b-4379-48cf-8bd6-f30f40372415" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="with-upsert" doc:id="6a1799c5-a469-4dbe-97e4-50d58587ce4e" >
+		<ee:transform doc:name="Transform Message" doc:id="4a9324a3-19e0-4bc6-accf-233c2402a88e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:bulk-insert doc:name="Bulk insert" doc:id="e28d6e38-b811-4ab4-8c1a-a7a01c5636a6" config-ref="Database_Config" >
+			<db:sql ><![CDATA[insert into sql6679566.employee_details(empId,empName,empPhone) values(:empId,:empName,:empNumber)ON DUPLICATE KEY UPDATE empName = :empName , empPhone = :empNumber]]></db:sql>
+		</db:bulk-insert>
+		<ee:transform doc:name="Transform Message1" doc:id="73ba320d-1cd1-4271-9065-36b3888f9429" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
